@@ -83,7 +83,10 @@ QString normalisePath(const QString& path)
         return {};
     }
 
-    if(Track::isArchivePath(path)) {
+    if(Track::isArchivePath(path) || Track::isVirtualPath(path)) {
+        // Archive entries and virtual (scheme) paths must be preserved verbatim;
+        // resolving them through QFileInfo would mangle the URL or join a bogus
+        // working-directory prefix.
         return path;
     }
 

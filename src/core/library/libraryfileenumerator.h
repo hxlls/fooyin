@@ -25,15 +25,13 @@
 
 #include <functional>
 
-class QFileInfo;
-
 namespace Fooyin {
 class LibraryScanState;
 
 class FYCORE_EXPORT LibraryFileEnumerator
 {
 public:
-    using EnumeratedFileHandler = std::function<bool(const QFileInfo&, EnumeratedFileType)>;
+    using EnumeratedFileHandler = std::function<bool(const LibraryEntry&, EnumeratedFileType)>;
 
     LibraryFileEnumerator(LibraryScanState* state, EnumeratedFileHandler handler);
 

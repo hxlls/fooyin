@@ -73,7 +73,7 @@ private:
     void flushWriter(bool finalFlush = false);
     void maybeFlushWriter();
     LibraryTrackResolver makeResolver();
-    bool handleEnumeratedFile(const QFileInfo& info, EnumeratedFileType type);
+    bool handleEnumeratedFile(const LibraryEntry& entry, EnumeratedFileType type);
     void handleScanWriterFlush(const ScanResult& result);
     void flushTrackResolverWrites();
     void finaliseUnseenTracks();

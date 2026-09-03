@@ -27,6 +27,30 @@
 namespace Fooyin {
 struct ScanResult;
 
+/*!
+ * A single item discovered during library scan enumeration.
+ *
+ * Replaces the previous `const QFileInfo&` carried through the enumeration
+ * callback. `path` is either a local absolute filesystem path or a scheme URL
+ * (e.g. a `webdavs://` virtual path handled by an audio input backend); the
+ * remaining fields carry the file attributes known at enumeration time and are
+ * only populated for local directories (where they come cheaply from
+ * QFileInfo). Virtual/remote enumeration supplies size/modified from the
+ * directory listing protocol where available.
+ */
+struct FYCORE_EXPORT LibraryEntry
+{
+    QString path;
+    bool isDir{false};
+    qint64 size{0};
+    qint64 modifiedMs{0};
+
+    [[nodiscard]] bool isVirtualPath() const
+    {
+        return Track::isVirtualPath(path);
+    }
+};
+
 class FYCORE_EXPORT LibraryScanHost
 {
 public:
