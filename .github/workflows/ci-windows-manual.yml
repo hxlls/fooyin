@@ -1,0 +1,18 @@
+name: Build Windows (manual dispatch)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_suffix:
+        description: Optional suffix appended to the application version
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  windows:
+    name: Windows
+    uses: ./.github/workflows/build-windows.yml
+    with:
+      version_suffix: ${{ inputs.version_suffix || '' }}
+    secrets: inherit
