@@ -34,6 +34,7 @@
 
 #include <QAction>
 #include <QCheckBox>
+#include <QCursor>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFileDialog>
@@ -269,9 +270,9 @@ void LibraryGeneralPageWidget::addLibrary() const
     // WebDAV 服务器：弹出一个连接配置对话框，收集 URL 与凭据后作为库源入库。
     QAction* const addWebdav = addMenu.addAction(tr("&WebDAV server\u2026"));
 
-    // 在媒体库表格视图中点弹出菜单。
-    const QPoint globalPos = m_libraryView->viewport()->mapToGlobal(m_libraryView->viewport()->rect().center());
-    QAction* const chosen  = addMenu.exec(globalPos);
+    // 在用户点击的"+"(鼠标当前位置)下方弹出来源类型菜单，而非视图正中。
+    // 由于 addLibrary() 由 ExtendableTableView 的"+"触发，点击瞬间鼠标正位于按钮上。
+    QAction* const chosen = addMenu.exec(QCursor::pos());
 
     // ── 本地目录来源 ──
     if(chosen == addLocal) {
