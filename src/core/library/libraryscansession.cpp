@@ -35,6 +35,7 @@
 #include <core/trackmetadatastore.h>
 
 #include <QDateTime>
+#include <QFileInfo>
 #include <QLoggingCategory>
 
 #include <ranges>
@@ -175,13 +176,13 @@ LibraryTrackResolver LibraryScanSession::makeResolver()
                                 flushWrites};
 }
 
-bool LibraryScanSession::handleEnumeratedFile(const QFileInfo& info, const EnumeratedFileType type)
+bool LibraryScanSession::handleEnumeratedFile(const LibraryEntry& entry, const EnumeratedFileType type)
 {
     if(!m_state.mayRun()) {
         return false;
     }
 
-    const QString filepath = normalisePath(info.absoluteFilePath());
+    const QString filepath = normalisePath(entry.path);
 
     m_phase = ScanProgress::Phase::ReadingMetadata;
     m_state.setProgressPhase(m_phase, 0);
@@ -256,6 +257,10 @@ bool LibraryScanSession::handleEnumeratedFile(const QFileInfo& info, const Enume
         }
     }
     else {
+        // Local scan: the resolver still takes a QFileInfo to stat the file.
+        // Virtual entries (scheme URLs) are not yet produced by the local
+        // enumerator, so only the local QFileInfo path is exercised here.
+        const QFileInfo info{filepath};
         switch(type) {
             case EnumeratedFileType::Cue:
                 m_resolver->readCue(info, m_onlyModified);
@@ -335,8 +340,8 @@ bool LibraryScanSession::scanLibrary(const LibraryInfo& library, const TrackList
     m_resolver     = &resolver;
     m_onlyModified = onlyModified;
 
-    LibraryFileEnumerator enumerator{&m_state, [this](const QFileInfo& info, const EnumeratedFileType type) {
-                                         return handleEnumeratedFile(info, type);
+    LibraryFileEnumerator enumerator{&m_state, [this](const LibraryEntry& entry, const EnumeratedFileType type) {
+                                         return handleEnumeratedFile(entry, type);
                                      }};
 
     const bool completed = enumerator.enumerateFiles({library.path}, restrictExtensions, {});
@@ -378,8 +383,8 @@ bool LibraryScanSession::scanDirectories(const LibraryInfo& library, const QStri
     m_resolver     = &resolver;
     m_onlyModified = true;
 
-    LibraryFileEnumerator enumerator{&m_state, [this](const QFileInfo& info, const EnumeratedFileType type) {
-                                         return handleEnumeratedFile(info, type);
+    LibraryFileEnumerator enumerator{&m_state, [this](const LibraryEntry& entry, const EnumeratedFileType type) {
+                                         return handleEnumeratedFile(entry, type);
                                      }};
 
     const bool completed = enumerator.enumerateFiles(dirs, restrictExtensions, {});
@@ -440,8 +445,8 @@ bool LibraryScanSession::scanFiles(const TrackList& libraryTracks, const QList<Q
     m_fileScanResult  = &result;
     m_enumerationMode = EnumerationMode::External;
 
-    LibraryFileEnumerator enumerator{&m_state, [this](const QFileInfo& info, const EnumeratedFileType type) {
-                                         return handleEnumeratedFile(info, type);
+    LibraryFileEnumerator enumerator{&m_state, [this](const LibraryEntry& entry, const EnumeratedFileType type) {
+                                         return handleEnumeratedFile(entry, type);
                                      }};
 
     const bool completed = enumerator.enumerateFiles(paths, restrictExtensions, playlistExtensions);
