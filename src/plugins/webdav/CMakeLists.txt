@@ -2,6 +2,7 @@ create_fooyin_plugin_internal(
     webdav
     DEPENDS Fooyin::Core
             Fooyin::CorePrivate
+            ${FFMPEG_LIBRARIES}
     SOURCES webdavclient.cpp
             webdavclient.h
             webdavdevice.cpp
@@ -13,3 +14,5 @@ create_fooyin_plugin_internal(
             webdavurl.cpp
             webdavurl.h
 )
+
+target_include_directories(webdav PRIVATE ${FFMPEG_INCLUDE_DIRS})
