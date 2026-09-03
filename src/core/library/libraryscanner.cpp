@@ -154,8 +154,10 @@ void LibraryScanner::scanLibrary(const LibraryInfo& library, const TrackList& tr
 
     const Timer timer;
 
-    // 本地目录库先确认目录存在才扫描；虚拟(远程, 如 webdavs://)库源不做本地文件系统存在性检查，
-    // 由对应来源的目录枚举/扫描逻辑自行处理，因此这里对其放行。
+    // Local libraries are only scanned when the directory exists on the local file
+    // system. Virtual (remote, e.g. webdavs://) library roots have no local path, so
+    // they are allowed through here; their directory enumeration is handled by the
+    // source that registered a directory provider for the scheme.
     const bool isVirtualRoot = Track::isVirtualPath(m_currentLibrary.path);
     if(m_currentLibrary.id >= 0 && (isVirtualRoot || QFileInfo::exists(m_currentLibrary.path))) {
         m_session->scanLibrary(library, tracks, onlyModified);

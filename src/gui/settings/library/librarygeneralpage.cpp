@@ -259,22 +259,26 @@ void LibraryGeneralPageWidget::reset()
 
 void LibraryGeneralPageWidget::addLibrary() const
 {
-    // ── 媒体库"添加"来源类型菜单 ──
-    // 这里把原本"只能选本地目录"的添加入口，扩展成一组"来源类型"。
-    // 目前提供两种来源：本地目录(默认, 保持原有行为)与 WebDAV 服务器。
-    // 未来 SMB / FTP 等远程来源类型也在此追加，复用同一套"构建 LibraryInfo -> 入库"流程。
+    // ===== Library source-type menu for the "add" action =====
+    // The original entry only let the user pick a local folder. This extends it to a
+    // set of source types. Currently two are offered: a local directory (default, so
+    // existing behaviour is unchanged) and a WebDAV server. Future remote types such as
+    // SMB or FTP can be appended here, reusing the same "build a LibraryInfo and add it"
+    // flow, which keeps the GUI unaware of any protocol specifics.
     QMenu addMenu;
 
-    // 本地目录：沿用原来的系统目录选择器，保证既有用户零变化。
+    // Local directory: keep the system folder picker so existing users see no change.
     QAction* const addLocal = addMenu.addAction(tr("Local &directory\u2026"));
-    // WebDAV 服务器：弹出一个连接配置对话框，收集 URL 与凭据后作为库源入库。
+    // WebDAV server: open a connection dialog collecting an URL and credentials, then
+    // store the library with a webdav(s):// path.
     QAction* const addWebdav = addMenu.addAction(tr("&WebDAV server\u2026"));
 
-    // 在用户点击的"+"(鼠标当前位置)下方弹出来源类型菜单，而非视图正中。
-    // 由于 addLibrary() 由 ExtendableTableView 的"+"触发，点击瞬间鼠标正位于按钮上。
+    // Pop the source-type menu under the cursor (the just-clicked "+"), not centred on
+    // the table. addLibrary() runs right after the ExtendableTableView "+" was pressed,
+    // so the cursor is on the button at this point.
     QAction* const chosen = addMenu.exec(QCursor::pos());
 
-    // ── 本地目录来源 ──
+    // ===== Local directory source =====
     if(chosen == addLocal) {
         const QString dir = QFileDialog::getExistingDirectory(m_libraryView, tr("Select folder"), QDir::homePath(),
                                                               QFileDialog::DontResolveSymlinks);
@@ -287,8 +291,10 @@ void LibraryGeneralPageWidget::addLibrary() const
         return;
     }
 
-    // ── WebDAV 来源：配置对话框 ──
-    // path 采用 webdavs://host:port/root 形式；凭据不写入 path/数据库，仅用于本次连接配置。
+    // ===== WebDAV source: configuration dialog =====
+    // The library path is stored as webdavs://host:port/root. Credentials are kept out
+    // of the path and the track database; they are saved separately in the settings,
+    // keyed by host:port, and applied when the server is scanned or played.
     if(chosen == addWebdav) {
         QDialog dialog(m_libraryView);
         dialog.setWindowTitle(tr("Add WebDAV library"));
@@ -313,7 +319,8 @@ void LibraryGeneralPageWidget::addLibrary() const
             QString url  = urlEdit->text().trimmed();
             QString name = nameEdit->text().trimmed();
             if(name.isEmpty()) {
-                // 库名缺省取 URL 路径的末段；路径为空则取 host。
+                // Default the library name to the last URL path segment, or the host if
+                // the path is empty.
                 const QUrl parsed{url};
                 const QString path = parsed.path();
                 name               = path.isEmpty() ? parsed.host() : QFileInfo{path}.fileName();
@@ -322,7 +329,7 @@ void LibraryGeneralPageWidget::addLibrary() const
                 m_model->markForAddition({});
                 return;
             }
-            // path 保存为 webdavs:// URL，后续扫描据此交给 WebDAV 源处理。
+            // Keep the path as a webdavs:// URL; scanning routes it to the WebDAV source.
             m_model->markForAddition({.name = name, .path = url});
         }
         return;
