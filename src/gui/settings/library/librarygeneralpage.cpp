@@ -41,6 +41,14 @@
 #include <QInputDialog>
 #include <QLabel>
 #include <QMenu>
+#include <QVBoxLayout>
+#include <QUrl>
+#include <QAction>
+#include <QPushButton>
+#include <QLineEdit>
+#include <QFormLayout>
+#include <QDialogButtonBox>
+#include <QDialog>
 
 using namespace Qt::StringLiterals;
 
@@ -250,18 +258,75 @@ void LibraryGeneralPageWidget::reset()
 
 void LibraryGeneralPageWidget::addLibrary() const
 {
-    const QString dir = QFileDialog::getExistingDirectory(m_libraryView, tr("Directory"), QDir::homePath(),
-                                                          QFileDialog::DontResolveSymlinks);
+    // ── 媒体库"添加"来源类型菜单 ──
+    // 这里把原本"只能选本地目录"的添加入口，扩展成一组"来源类型"。
+    // 目前提供两种来源：本地目录(默认, 保持原有行为)与 WebDAV 服务器。
+    // 未来 SMB / FTP 等远程来源类型也在此追加，复用同一套"构建 LibraryInfo -> 入库"流程。
+    QMenu addMenu;
 
-    if(dir.isEmpty()) {
-        m_model->markForAddition({});
+    // 本地目录：沿用原来的系统目录选择器，保证既有用户零变化。
+    QAction* const addLocal = addMenu.addAction(tr("Local &directory\u2026"));
+    // WebDAV 服务器：弹出一个连接配置对话框，收集 URL 与凭据后作为库源入库。
+    QAction* const addWebdav = addMenu.addAction(tr("&WebDAV server\u2026"));
+
+    // 在媒体库表格视图中点弹出菜单。
+    const QPoint globalPos = m_libraryView->viewport()->mapToGlobal(
+        m_libraryView->viewport()->rect().center());
+    QAction* const chosen = addMenu.exec(globalPos);
+
+    // ── 本地目录来源 ──
+    if(chosen == addLocal) {
+        const QString dir = QFileDialog::getExistingDirectory(m_libraryView, tr("Select folder"),
+                                                              QDir::homePath(), QFileDialog::DontResolveSymlinks);
+        if(dir.isEmpty()) {
+            m_model->markForAddition({});
+            return;
+        }
+        const QFileInfo info{QDir::cleanPath(dir)};
+        m_model->markForAddition({.name = info.fileName(), .path = dir});
         return;
     }
 
-    const QFileInfo info{QDir::cleanPath(dir)};
-    const QString name = info.fileName();
+    // ── WebDAV 来源：配置对话框 ──
+    // path 采用 webdavs://host:port/root 形式；凭据不写入 path/数据库，仅用于本次连接配置。
+    if(chosen == addWebdav) {
+        QDialog dialog(m_libraryView);
+        dialog.setWindowTitle(tr("Add WebDAV library"));
+        auto* form = new QFormLayout;
+        auto* urlEdit = new QLineEdit(u"webdavs://"_s, &dialog);
+        auto* userEdit = new QLineEdit(&dialog);
+        auto* passEdit = new QLineEdit(&dialog);
+        auto* nameEdit = new QLineEdit(&dialog);
+        passEdit->setEchoMode(QLineEdit::Password);
+        form->addRow(tr("Server URL:"), urlEdit);
+        form->addRow(tr("User name:"), userEdit);
+        form->addRow(tr("Password:"), passEdit);
+        form->addRow(tr("Library name:"), nameEdit);
+        auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        auto* layout = new QVBoxLayout(&dialog);
+        layout->addLayout(form);
+        layout->addWidget(buttons);
 
-    m_model->markForAddition({.name = name, .path = dir});
+        if(dialog.exec() == QDialog::Accepted) {
+            QString url = urlEdit->text().trimmed();
+            QString name = nameEdit->text().trimmed();
+            if(name.isEmpty()) {
+                // 库名缺省取 URL 路径的末段；路径为空则取 host。
+                const QUrl parsed{url};
+                const QString path = parsed.path();
+                name = path.isEmpty() ? parsed.host() : QFileInfo{path}.fileName();
+            }
+            if(url.isEmpty() || name.isEmpty()) {
+                m_model->markForAddition({});
+                return;
+            }
+            // path 保存为 webdavs:// URL，后续扫描据此交给 WebDAV 源处理。
+            m_model->markForAddition({.name = name, .path = url});
+        }
+        return;
+    }
 }
 
 LibraryGeneralPage::LibraryGeneralPage(LibraryManager* libraryManager, MusicLibrary* library, SettingsManager* settings,
