@@ -32,23 +32,23 @@
 #include <utils/settings/settingsmanager.h>
 #include <utils/utils.h>
 
+#include <QAction>
 #include <QCheckBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHeaderView>
 #include <QInputDialog>
 #include <QLabel>
-#include <QMenu>
-#include <QVBoxLayout>
-#include <QUrl>
-#include <QAction>
-#include <QPushButton>
 #include <QLineEdit>
-#include <QFormLayout>
-#include <QDialogButtonBox>
-#include <QDialog>
+#include <QMenu>
+#include <QPushButton>
+#include <QUrl>
+#include <QVBoxLayout>
 
 using namespace Qt::StringLiterals;
 
@@ -270,14 +270,13 @@ void LibraryGeneralPageWidget::addLibrary() const
     QAction* const addWebdav = addMenu.addAction(tr("&WebDAV server\u2026"));
 
     // 在媒体库表格视图中点弹出菜单。
-    const QPoint globalPos = m_libraryView->viewport()->mapToGlobal(
-        m_libraryView->viewport()->rect().center());
-    QAction* const chosen = addMenu.exec(globalPos);
+    const QPoint globalPos = m_libraryView->viewport()->mapToGlobal(m_libraryView->viewport()->rect().center());
+    QAction* const chosen  = addMenu.exec(globalPos);
 
     // ── 本地目录来源 ──
     if(chosen == addLocal) {
-        const QString dir = QFileDialog::getExistingDirectory(m_libraryView, tr("Select folder"),
-                                                              QDir::homePath(), QFileDialog::DontResolveSymlinks);
+        const QString dir = QFileDialog::getExistingDirectory(m_libraryView, tr("Select folder"), QDir::homePath(),
+                                                              QFileDialog::DontResolveSymlinks);
         if(dir.isEmpty()) {
             m_model->markForAddition({});
             return;
@@ -292,8 +291,8 @@ void LibraryGeneralPageWidget::addLibrary() const
     if(chosen == addWebdav) {
         QDialog dialog(m_libraryView);
         dialog.setWindowTitle(tr("Add WebDAV library"));
-        auto* form = new QFormLayout;
-        auto* urlEdit = new QLineEdit(u"webdavs://"_s, &dialog);
+        auto* form     = new QFormLayout;
+        auto* urlEdit  = new QLineEdit(u"webdavs://"_s, &dialog);
         auto* userEdit = new QLineEdit(&dialog);
         auto* passEdit = new QLineEdit(&dialog);
         auto* nameEdit = new QLineEdit(&dialog);
@@ -310,13 +309,13 @@ void LibraryGeneralPageWidget::addLibrary() const
         layout->addWidget(buttons);
 
         if(dialog.exec() == QDialog::Accepted) {
-            QString url = urlEdit->text().trimmed();
+            QString url  = urlEdit->text().trimmed();
             QString name = nameEdit->text().trimmed();
             if(name.isEmpty()) {
                 // 库名缺省取 URL 路径的末段；路径为空则取 host。
                 const QUrl parsed{url};
                 const QString path = parsed.path();
-                name = path.isEmpty() ? parsed.host() : QFileInfo{path}.fileName();
+                name               = path.isEmpty() ? parsed.host() : QFileInfo{path}.fileName();
             }
             if(url.isEmpty() || name.isEmpty()) {
                 m_model->markForAddition({});

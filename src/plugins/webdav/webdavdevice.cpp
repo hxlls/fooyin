@@ -70,8 +70,8 @@ bool WebdavDevice::open(OpenMode mode)
     const WebdavResponse probe = m_client->getRange(m_url, 0, ReadAheadBytes - 1);
 
     if(!probe.ok() && !probe.isPartial()) {
-        setErrorString(u"Failed to open %1: HTTP %2 %3"_s.arg(m_url.toString(), QString::number(probe.status),
-                                                              probe.error));
+        setErrorString(
+            u"Failed to open %1: HTTP %2 %3"_s.arg(m_url.toString(), QString::number(probe.status), probe.error));
         return false;
     }
 

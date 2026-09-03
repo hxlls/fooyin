@@ -26,7 +26,7 @@
 namespace Fooyin::Webdav {
 
 //! URI scheme handled by this plugin. Registered via AudioDecoder/AudioReader::supportedSchemes().
-constexpr auto Scheme = "webdav";
+constexpr auto Scheme       = "webdav";
 constexpr auto SecureScheme = "webdavs";
 
 //! True when @p path uses one of the schemes owned by this plugin.

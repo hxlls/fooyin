@@ -39,11 +39,11 @@ namespace {
 LibraryEntry entryFromFileInfo(const QFileInfo& info)
 {
     LibraryEntry entry;
-    entry.path       = info.absoluteFilePath();
-    entry.isDir      = info.isDir();
-    entry.size       = info.isFile() ? info.size() : 0;
+    entry.path               = info.absoluteFilePath();
+    entry.isDir              = info.isDir();
+    entry.size               = info.isFile() ? info.size() : 0;
     const QDateTime modified = info.lastModified();
-    entry.modifiedMs = modified.isValid() ? static_cast<qint64>(modified.toMSecsSinceEpoch()) : 0;
+    entry.modifiedMs         = modified.isValid() ? static_cast<qint64>(modified.toMSecsSinceEpoch()) : 0;
     return entry;
 }
 
@@ -70,8 +70,7 @@ bool LibraryFileEnumerator::enumerateFiles(const QStringList& paths, const QStri
 {
     std::set<QString> visitedDirs;
 
-    auto fileType
-        = [&trackExtensions, &playlistExtensions](const QString& path) -> std::optional<EnumeratedFileType> {
+    auto fileType = [&trackExtensions, &playlistExtensions](const QString& path) -> std::optional<EnumeratedFileType> {
         const QString suffix = entrySuffix(path);
 
         if(suffix == "cue"_L1 && trackExtensions.contains(u"cue"_s)) {
@@ -204,7 +203,7 @@ bool LibraryFileEnumerator::processDirectory(const QString& path, const QStringL
         }
 
         const LibraryEntry entry = entryFromFileInfo(entryInfo);
-        const QString suffix      = entrySuffix(entry.path);
+        const QString suffix     = entrySuffix(entry.path);
         if(suffix == "cue"_L1 && trackExtensions.contains(u"cue"_s)) {
             continue;
         }

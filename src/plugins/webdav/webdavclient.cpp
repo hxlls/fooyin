@@ -99,7 +99,7 @@ QList<WebdavEntry> parseMultiStatus(const QByteArray& body, const QUrl& baseUrl)
                 }
             }
             else if(name.compare(u"prop", Qt::CaseInsensitive) == 0) {
-                inProp   = false;
+                inProp = false;
                 propName.clear();
             }
         }
@@ -294,12 +294,11 @@ WebdavClient::WebdavClient(QObject* parent)
     m_worker = new NetworkWorker();
     m_worker->moveToThread(m_thread);
 
-    QObject::connect(m_thread, &QThread::started, m_thread,
-                     [this]() {
-                         m_worker->setCredentials(m_user, m_password);
-                         m_worker->setTimeout(static_cast<int>(m_timeout.count()));
-                         m_worker->setInsecureSsl(m_insecureSsl);
-                     });
+    QObject::connect(m_thread, &QThread::started, m_thread, [this]() {
+        m_worker->setCredentials(m_user, m_password);
+        m_worker->setTimeout(static_cast<int>(m_timeout.count()));
+        m_worker->setInsecureSsl(m_insecureSsl);
+    });
     QObject::connect(m_thread, &QThread::finished, m_worker, &QObject::deleteLater);
 
     m_thread->start();
@@ -320,8 +319,7 @@ void WebdavClient::setCredentials(const QString& user, const QString& password)
 
     if(m_thread && m_thread->isRunning()) {
         QMetaObject::invokeMethod(
-            m_worker,
-            [worker = m_worker, user, password]() { worker->setCredentials(user, password); },
+            m_worker, [worker = m_worker, user, password]() { worker->setCredentials(user, password); },
             Qt::QueuedConnection);
     }
 }
@@ -331,8 +329,7 @@ void WebdavClient::setTimeout(std::chrono::milliseconds timeout)
     m_timeout = timeout;
     if(m_thread && m_thread->isRunning()) {
         QMetaObject::invokeMethod(
-            m_worker,
-            [worker = m_worker, ms = static_cast<int>(timeout.count())]() { worker->setTimeout(ms); },
+            m_worker, [worker = m_worker, ms = static_cast<int>(timeout.count())]() { worker->setTimeout(ms); },
             Qt::QueuedConnection);
     }
 }
@@ -342,9 +339,7 @@ void WebdavClient::setInsecureSsl(bool insecure)
     m_insecureSsl = insecure;
     if(m_thread && m_thread->isRunning()) {
         QMetaObject::invokeMethod(
-            m_worker,
-            [worker = m_worker, insecure]() { worker->setInsecureSsl(insecure); },
-            Qt::QueuedConnection);
+            m_worker, [worker = m_worker, insecure]() { worker->setInsecureSsl(insecure); }, Qt::QueuedConnection);
     }
 }
 
@@ -364,10 +359,7 @@ WebdavResponse WebdavClient::exec(WebdavClientRequest* req)
     // Functor form runs the lambda on the worker's thread (QueuedConnection)
     // regardless of the calling thread, so it is safe from a decoder thread
     // that has no event loop.
-    QMetaObject::invokeMethod(
-        m_worker,
-        [worker = m_worker, req]() { worker->execute(req); },
-        Qt::QueuedConnection);
+    QMetaObject::invokeMethod(m_worker, [worker = m_worker, req]() { worker->execute(req); }, Qt::QueuedConnection);
 
     // Wait with a hard timeout so a stalled/hung worker cannot block the
     // calling (decoder) thread forever.

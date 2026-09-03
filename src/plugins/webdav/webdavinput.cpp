@@ -198,8 +198,8 @@ QByteArray WebdavReader::readCover(const AudioSource& source, const Track& track
         return {};
     }
 
-    return m_reader->readCover(rebindSource(m_filepath.isEmpty() ? source.filepath : m_filepath, m_device.get()),
-                               track, cover);
+    return m_reader->readCover(rebindSource(m_filepath.isEmpty() ? source.filepath : m_filepath, m_device.get()), track,
+                               cover);
 }
 
 } // namespace Fooyin::Webdav

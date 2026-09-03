@@ -48,8 +48,12 @@ QString WebdavPlugin::inputName() const
 InputCreator WebdavPlugin::inputCreator() const
 {
     InputCreator creator;
-    creator.decoder = [client = m_client]() { return std::make_unique<WebdavDecoder>(client); };
-    creator.reader  = [client = m_client]() { return std::make_unique<WebdavReader>(client); };
+    creator.decoder = [client = m_client]() {
+        return std::make_unique<WebdavDecoder>(client);
+    };
+    creator.reader = [client = m_client]() {
+        return std::make_unique<WebdavReader>(client);
+    };
     return creator;
 }
 
