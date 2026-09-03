@@ -36,6 +36,7 @@ set(FOOYIN_KNOWN_PLUGINS
     vumeter
     wasapi
     wavebar
+    webdav
 )
 
 set(FOOYIN_DEFAULT_PLUGINS
@@ -65,6 +66,7 @@ set(FOOYIN_DEFAULT_PLUGINS
     tageditor
     vumeter
     wavebar
+    webdav
 )
 
 if(BUILD_ALSA)
@@ -156,6 +158,7 @@ fooyin_add_selected_plugin(soxresampler)
 fooyin_add_selected_plugin(tageditor)
 fooyin_add_selected_plugin(vumeter)
 fooyin_add_selected_plugin(wavebar)
+fooyin_add_selected_plugin(webdav)
 
 if(WIN32)
     fooyin_add_selected_plugin(wasapi)
