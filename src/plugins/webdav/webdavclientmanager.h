@@ -66,6 +66,9 @@ public:
 private:
     [[nodiscard]] QString authority(const QUrl& url) const;
 
+    //! Creates and configures a client. Must run on this object's thread.
+    [[nodiscard]] WebdavClient* createClient(const QString& key);
+
     SettingsManager* m_settings;
     QHash<QString, WebdavClient*> m_clients;
     std::mutex m_mutex;
