@@ -50,6 +50,7 @@
 #include <QPushButton>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QVariantMap>
 
 using namespace Qt::StringLiterals;
 
@@ -308,11 +309,16 @@ void LibraryGeneralPageWidget::addLibrary() const
         form->addRow(tr("User name:"), userEdit);
         form->addRow(tr("Password:"), passEdit);
         form->addRow(tr("Library name:"), nameEdit);
-        auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        // Some servers (e.g. a NAS reached by raw LAN IP) present a certificate
+        // issued for a hostname, so the TLS peer cannot be verified. When ticked,
+        // peer verification is disabled for this server only.
+        auto* insecureSsl = new QCheckBox(tr("Ignore certificate errors"), &dialog);
+        auto* buttons     = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
         QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
         auto* layout = new QVBoxLayout(&dialog);
         layout->addLayout(form);
+        layout->addWidget(insecureSsl);
         layout->addWidget(buttons);
 
         if(dialog.exec() == QDialog::Accepted) {
@@ -329,6 +335,20 @@ void LibraryGeneralPageWidget::addLibrary() const
                 m_model->markForAddition({});
                 return;
             }
+            // Persist credentials for the server separately from the library path,
+            // keyed by "webdav/<host:port>". The WebDAV plugin reads this entry when
+            // it first talks to the server (scanning or playback). Keeping passwords
+            // out of LibraryInfo/Track paths avoids leaking them into the database.
+            const QUrl urlParsed{url};
+            const QString authority = urlParsed.port() > 0
+                                        ? QStringLiteral("%1:%2").arg(urlParsed.host()).arg(urlParsed.port())
+                                        : urlParsed.host();
+            QVariantMap credentials;
+            credentials.insert(QStringLiteral("user"), userEdit->text());
+            credentials.insert(QStringLiteral("password"), passEdit->text());
+            credentials.insert(QStringLiteral("insecureSsl"), insecureSsl->isChecked());
+            m_settings->fileSet(QStringLiteral("webdav/") + authority, credentials);
+
             // Keep the path as a webdavs:// URL; scanning routes it to the WebDAV source.
             m_model->markForAddition({.name = name, .path = url});
         }
