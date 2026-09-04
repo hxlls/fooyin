@@ -50,8 +50,8 @@ AudioSource rebindSource(const QString& filepath, QIODevice* device)
 }
 } // namespace
 
-WebdavDecoder::WebdavDecoder(WebdavClient* client)
-    : m_client{client}
+WebdavDecoder::WebdavDecoder(WebdavClientManager* manager)
+    : m_manager{manager}
 { }
 
 QStringList WebdavDecoder::extensions() const
@@ -95,7 +95,12 @@ std::optional<AudioFormat> WebdavDecoder::init(const AudioSource& source, const 
     m_decoder.reset();
     m_device.reset();
 
-    m_device = std::make_unique<WebdavDevice>(m_client, url.value());
+    WebdavClient* const client = m_manager ? m_manager->clientFor(url.value()) : nullptr;
+    if(!client) {
+        return {};
+    }
+
+    m_device = std::make_unique<WebdavDevice>(client, url.value());
     if(!m_device->open(QIODevice::ReadOnly)) {
         m_device.reset();
         return {};
@@ -135,8 +140,8 @@ AudioBuffer WebdavDecoder::readBuffer(size_t bytes)
     return m_decoder ? m_decoder->readBuffer(bytes) : AudioBuffer{};
 }
 
-WebdavReader::WebdavReader(WebdavClient* client)
-    : m_client{client}
+WebdavReader::WebdavReader(WebdavClientManager* manager)
+    : m_manager{manager}
 { }
 
 QStringList WebdavReader::extensions() const
@@ -169,7 +174,12 @@ bool WebdavReader::init(const AudioSource& source)
     m_reader.reset();
     m_device.reset();
 
-    m_device = std::make_unique<WebdavDevice>(m_client, url.value());
+    WebdavClient* const client = m_manager ? m_manager->clientFor(url.value()) : nullptr;
+    if(!client) {
+        return false;
+    }
+
+    m_device = std::make_unique<WebdavDevice>(client, url.value());
     if(!m_device->open(QIODevice::ReadOnly)) {
         m_device.reset();
         return false;

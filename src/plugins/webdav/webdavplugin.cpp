@@ -25,19 +25,21 @@ using namespace Qt::StringLiterals;
 
 namespace Fooyin::Webdav {
 
-WebdavPlugin::WebdavPlugin()
-    : m_client{nullptr}
-{ }
+WebdavPlugin::WebdavPlugin() = default;
 
 WebdavPlugin::~WebdavPlugin() = default;
 
 void WebdavPlugin::initialise(const CorePluginContext& context)
 {
-    Q_UNUSED(context);
+    // One client per server authority is created lazily by the manager (see
+    // WebdavClientManager). The manager must outlive every decoder/reader the
+    // inputCreator() below produces, hence it is owned here.
+    m_manager = new WebdavClientManager(context.settingsManager, this);
 
-    // Owned by the plugin so that the shared network thread outlives every
-    // decoder/reader instance created from inputCreator().
-    m_client = new WebdavClient(this);
+    // Register this plugin as the directory provider for webdav/webdavs library
+    // roots so the library scanner can enumerate virtual sources.
+    m_dirProvider = new WebdavDirProvider(m_manager);
+    libraryDirProviderRegistry()->addProvider(m_dirProvider);
 }
 
 QString WebdavPlugin::inputName() const
@@ -48,11 +50,11 @@ QString WebdavPlugin::inputName() const
 InputCreator WebdavPlugin::inputCreator() const
 {
     InputCreator creator;
-    creator.decoder = [client = m_client]() {
-        return std::make_unique<WebdavDecoder>(client);
+    creator.decoder = [manager = m_manager]() {
+        return std::make_unique<WebdavDecoder>(manager);
     };
-    creator.reader = [client = m_client]() {
-        return std::make_unique<WebdavReader>(client);
+    creator.reader = [manager = m_manager]() {
+        return std::make_unique<WebdavReader>(manager);
     };
     return creator;
 }

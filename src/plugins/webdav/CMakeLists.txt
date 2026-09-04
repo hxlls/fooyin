@@ -5,6 +5,10 @@ create_fooyin_plugin_internal(
             ${FFMPEG_LIBRARIES}
     SOURCES webdavclient.cpp
             webdavclient.h
+            webdavclientmanager.cpp
+            webdavclientmanager.h
+            webdavdirprovider.cpp
+            webdavdirprovider.h
             webdavdevice.cpp
             webdavdevice.h
             webdavinput.cpp

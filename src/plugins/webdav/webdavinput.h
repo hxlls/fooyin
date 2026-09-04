@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include "webdavclientmanager.h"
+
 #include "webdavdevice.h"
 
 #include <core/engine/audioinput.h>
@@ -40,7 +42,7 @@ namespace Fooyin::Webdav {
 class WebdavDecoder : public AudioDecoder
 {
 public:
-    explicit WebdavDecoder(WebdavClient* client);
+    explicit WebdavDecoder(WebdavClientManager* manager);
 
     [[nodiscard]] QStringList extensions() const override;
     [[nodiscard]] QStringList supportedSchemes() const override;
@@ -56,7 +58,7 @@ public:
     AudioBuffer readBuffer(size_t bytes) override;
 
 private:
-    WebdavClient* m_client;
+    WebdavClientManager* m_manager;
     std::unique_ptr<FFmpegDecoder> m_decoder;
     std::unique_ptr<WebdavDevice> m_device;
 };
@@ -74,7 +76,7 @@ private:
 class WebdavReader : public AudioReader
 {
 public:
-    explicit WebdavReader(WebdavClient* client);
+    explicit WebdavReader(WebdavClientManager* manager);
 
     [[nodiscard]] QStringList extensions() const override;
     [[nodiscard]] QStringList supportedSchemes() const override;
@@ -86,7 +88,7 @@ public:
     QByteArray readCover(const AudioSource& source, const Track& track, Track::Cover cover) override;
 
 private:
-    WebdavClient* m_client;
+    WebdavClientManager* m_manager;
     std::unique_ptr<TagLibReader> m_reader;
     std::unique_ptr<WebdavDevice> m_device;
     QString m_filepath;

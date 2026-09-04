@@ -19,7 +19,8 @@
 
 #pragma once
 
-#include "webdavclient.h"
+#include "webdavclientmanager.h"
+#include "webdavdirprovider.h"
 
 #include <core/engine/inputplugin.h>
 #include <core/plugins/coreplugin.h>
@@ -59,7 +60,8 @@ public:
     [[nodiscard]] InputCreator inputCreator() const override;
 
 private:
-    WebdavClient* m_client;
+    WebdavClientManager* m_manager;
+    WebdavDirProvider* m_dirProvider;
 };
 
 } // namespace Fooyin::Webdav
