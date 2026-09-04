@@ -25,6 +25,8 @@
 #include <QObject>
 #include <QUrl>
 
+#include <mutex>
+
 namespace Fooyin {
 class SettingsManager;
 } // namespace Fooyin
@@ -66,6 +68,7 @@ private:
 
     SettingsManager* m_settings;
     QHash<QString, WebdavClient*> m_clients;
+    std::mutex m_mutex;
 };
 
 } // namespace Fooyin::Webdav

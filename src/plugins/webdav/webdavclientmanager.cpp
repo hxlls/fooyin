@@ -4,6 +4,8 @@
 
 #include <QVariantMap>
 
+#include <mutex>
+
 using namespace Qt::StringLiterals;
 
 namespace Fooyin::Webdav {
@@ -43,11 +45,17 @@ QString WebdavClientManager::authority(const QUrl& url) const
 WebdavClient* WebdavClientManager::clientFor(const QUrl& url)
 {
     const QString key = authority(url);
+
+    const std::scoped_lock lock{m_mutex};
     if(auto* client = m_clients.value(key)) {
         return client;
     }
 
-    auto* client = new WebdavClient(this);
+    // No external parent: clientFor() may run on a scanner/decoder worker
+    // thread, and giving the client a main-thread parent would make Qt attempt
+    // to reparent across threads (a hard crash). The client owns its own
+    // network thread internally and is deleted by the manager destructor.
+    auto* client = new WebdavClient;
     m_clients.insert(key, client);
 
     // Configure from the stored per-server entry, if present. Entries are
