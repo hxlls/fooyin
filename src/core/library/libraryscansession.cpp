@@ -257,19 +257,34 @@ bool LibraryScanSession::handleEnumeratedFile(const LibraryEntry& entry, const E
         }
     }
     else {
-        // Local scan: the resolver still takes a QFileInfo to stat the file.
-        // Virtual entries (scheme URLs) are not yet produced by the local
-        // enumerator, so only the local QFileInfo path is exercised here.
-        const QFileInfo info{filepath};
-        switch(type) {
-            case EnumeratedFileType::Cue:
-                m_resolver->readCue(info, m_onlyModified);
-                break;
-            case EnumeratedFileType::Track:
-                m_resolver->readFile(info, m_onlyModified);
-                break;
-            case EnumeratedFileType::Playlist:
-                break;
+        // Virtual (scheme URL) tracks must bypass the QFileInfo path: on Windows
+        // QFileInfo::absoluteFilePath() treats "scheme://host/..." as a drive
+        // path and collapses the double slash, mangling the URL into a local
+        // path. Route them through readTracks() which is URL aware (the
+        // AudioLoader routes the scheme to the owning input plugin).
+        if(Track::isVirtualPath(filepath)) {
+            if(type == EnumeratedFileType::Track) {
+                const TrackList tracks = m_resolver->readTracks(filepath);
+                for(Track track : tracks) {
+                    readFileProperties(track);
+                    track.setAddedTime(QDateTime::currentMSecsSinceEpoch());
+                    m_fileScanResult->tracksScanned.push_back(track);
+                }
+            }
+        }
+        else {
+            // Local scan: the resolver still takes a QFileInfo to stat the file.
+            const QFileInfo info{filepath};
+            switch(type) {
+                case EnumeratedFileType::Cue:
+                    m_resolver->readCue(info, m_onlyModified);
+                    break;
+                case EnumeratedFileType::Track:
+                    m_resolver->readFile(info, m_onlyModified);
+                    break;
+                case EnumeratedFileType::Playlist:
+                    break;
+            }
         }
     }
 
