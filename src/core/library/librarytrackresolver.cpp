@@ -636,6 +636,66 @@ void LibraryTrackResolver::readFile(const QFileInfo& info, const bool onlyModifi
     readNewTrack(file);
 }
 
+void LibraryTrackResolver::readRemoteFile(const QString& filepath, const qint64 listingModifiedMs,
+                                          const bool onlyModified)
+{
+    const QString file = normalisePath(filepath);
+
+    if(!m_state->mayRun() || m_state->cueFilesScanned().contains(file)) {
+        return;
+    }
+
+    // Remote sources have no filesystem mtime. When the directory listing
+    // carries a modification time (modifiedMs > 0) use it for change detection;
+    // when it does not, fall back to refreshing on any explicit refresh pass so
+    // an incremental rescan never silently skips a file whose metadata changed.
+    const uint64_t lastModified = listingModifiedMs > 0 ? static_cast<uint64_t>(listingModifiedMs) : 0;
+
+    if(m_state->trackPaths().contains(file)) {
+        const auto& existingTracks = m_state->trackPaths().at(file);
+        const Track& libraryTrack  = existingTracks.front();
+        const bool needsRefresh    = !libraryTrack.isEnabled() || libraryTrack.libraryId() != m_currentLibrary.id
+                                  || !onlyModified || (lastModified > 0 && libraryTrack.modifiedTime() < lastModified);
+
+        if(!needsRefresh) {
+            m_state->markTracksSeen(existingTracks);
+            return;
+        }
+
+        std::unordered_map<QString, Track> existingByPath;
+        for(const auto& track : existingTracks) {
+            existingByPath.emplace(track.uniqueFilepath(), track);
+        }
+
+        const TrackList tracks = readTracks(file);
+        if(tracks.empty()) {
+            // Transient read failure (network/auth): keep the existing rows.
+            m_state->markTracksSeen(existingTracks);
+            return;
+        }
+
+        for(Track track : tracks) {
+            if(existingByPath.contains(track.uniqueFilepath())) {
+                const auto& existingTrack = existingByPath.at(track.uniqueFilepath());
+                applyExistingTrackIdentity(track, existingTrack);
+                mergeReloadedTrackStats(track, existingTrack, m_reloadOptions);
+            }
+            if(lastModified > 0) {
+                track.setModifiedTime(lastModified);
+            }
+
+            updateExistingTrack(track, file);
+            m_flushWrites();
+        }
+
+        return;
+    }
+
+    // A file new to this library goes through the same path as a newly found
+    // local file: read metadata and store it via the scan writer.
+    readNewTrack(file);
+}
+
 TrackList LibraryTrackResolver::readArchiveTracks(const QString& filepath)
 {
     auto archiveReader = m_audioLoader->archiveReaderForFile(filepath);

@@ -260,16 +260,12 @@ bool LibraryScanSession::handleEnumeratedFile(const LibraryEntry& entry, const E
         // Virtual (scheme URL) tracks must bypass the QFileInfo path: on Windows
         // QFileInfo::absoluteFilePath() treats "scheme://host/..." as a drive
         // path and collapses the double slash, mangling the URL into a local
-        // path. Route them through readTracks() which is URL aware (the
-        // AudioLoader routes the scheme to the owning input plugin).
+        // path. readRemoteFile() reads metadata through the scheme's input
+        // backend and stores tracks via the scan writer, exactly like readFile()
+        // does for local files.
         if(Track::isVirtualPath(filepath)) {
             if(type == EnumeratedFileType::Track) {
-                const TrackList tracks = m_resolver->readTracks(filepath);
-                for(Track track : tracks) {
-                    readFileProperties(track);
-                    track.setAddedTime(QDateTime::currentMSecsSinceEpoch());
-                    m_fileScanResult->tracksScanned.push_back(track);
-                }
+                m_resolver->readRemoteFile(filepath, entry.modifiedMs, m_onlyModified);
             }
         }
         else {

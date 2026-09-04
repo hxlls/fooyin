@@ -75,6 +75,14 @@ public:
     void readFile(const QString& file, bool onlyModified);
     void readFile(const QFileInfo& info, bool onlyModified);
 
+    /*!
+     * Reads a virtual (scheme URL) library track — e.g. a webdav(s):// file —
+     * and stores or updates it through the scan writer. Unlike readFile(), no
+     * local filesystem stat is performed: @p modifiedMs comes from the directory
+     * listing (0 when the source reports no modification time).
+     */
+    void readRemoteFile(const QString& filepath, qint64 modifiedMs, bool onlyModified);
+
 private:
     [[nodiscard]] TrackList readArchiveTracks(const QString& filepath);
 
