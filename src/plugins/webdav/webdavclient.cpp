@@ -70,7 +70,13 @@ QList<WebdavEntry> parseMultiStatus(const QByteArray& body, const QUrl& baseUrl)
                 inResponse = true;
             }
             else if(inResponse && name.compare(u"href", Qt::CaseInsensitive) == 0) {
-                current.path = QUrl::fromPercentEncoding(xml.readElementText().toUtf8());
+                // Keep the href exactly as the server sent it (percent-encoded).
+                // Decoding here would be lossy: servers may encode a space as '+'
+                // (form-style) which QUrl::fromPercentEncoding does not map back to
+                // a space, so a later request for the resource would 404. Storing
+                // the encoded href and building encoded webdav(s) URLs keeps the
+                // path lossless and round-trip safe.
+                current.path = xml.readElementText();
             }
             else if(inResponse && name.compare(u"prop", Qt::CaseInsensitive) == 0) {
                 inProp = true;

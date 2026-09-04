@@ -33,7 +33,15 @@ std::optional<QList<LibraryEntry>> WebdavDirProvider::listDirectory(const QUrl& 
         return {};
     }
 
-    WebdavClient* const client = m_manager->clientFor(httpUrl.value());
+    // PROPFIND targets a collection; ensure the request URL carries the trailing
+    // slash servers expect for directories (root "/" already ends with one).
+    QUrl dirUrl           = httpUrl.value();
+    const QString dirPath = dirUrl.path();
+    if(!dirPath.endsWith(u'/')) {
+        dirUrl.setPath(dirPath + u'/');
+    }
+
+    WebdavClient* const client = m_manager->clientFor(dirUrl);
     if(!client) {
         if(error) {
             *error = u"Could not create a connection to "_s + httpUrl.value().toString();
@@ -41,7 +49,7 @@ std::optional<QList<LibraryEntry>> WebdavDirProvider::listDirectory(const QUrl& 
         return {};
     }
 
-    const auto children = client->listDirectory(httpUrl.value());
+    const auto children = client->listDirectory(dirUrl);
     if(!children.has_value()) {
         if(error) {
             *error = u"Failed to list directory"_s;
@@ -51,8 +59,14 @@ std::optional<QList<LibraryEntry>> WebdavDirProvider::listDirectory(const QUrl& 
 
     // Map protocol entries to LibraryEntry, keeping the webdav(s) scheme so the
     // rest of fooyin (audio input routing, path normalisation) treats them as
-    // virtual paths. Parent paths are rebuilt from the listing's href where the
-    // server gives absolute URLs, otherwise re-joined onto the requested root.
+    // virtual paths.
+    //
+    // WebDAV servers return hrefs that are absolute paths *relative to the
+    // server root*, usually percent-encoded (e.g. "/music/%E9%99%88.flac").
+    // Joining them onto the requested library root would double the path
+    // ("/music/music/..."), so they are instead rebuilt onto
+    // "scheme://authority". The percent-encoding is preserved so a later
+    // toHttpUrl() round-trip requests the correct resource.
     QList<LibraryEntry> entries;
     entries.reserve(static_cast<qsizetype>(children->size()));
     for(const auto& child : children.value()) {
@@ -61,19 +75,29 @@ std::optional<QList<LibraryEntry>> WebdavDirProvider::listDirectory(const QUrl& 
         entry.size       = child.size;
         entry.modifiedMs = child.modified.isValid() ? static_cast<qint64>(child.modified.toMSecsSinceEpoch()) : 0;
 
-        // Build the canonical webdav(s) URL for this child. Prefer the href from
-        // the server when it is absolute and shares our scheme.
-        const QUrl hrefUrl{child.path};
-        if(hrefUrl.isValid()
-           && (hrefUrl.scheme() == QLatin1String(Scheme) || hrefUrl.scheme() == QLatin1String(SecureScheme))
-           && !hrefUrl.host().isEmpty()) {
+        // The child is already an absolute webdav(s) URL (some servers echo the
+        // full URL back in the href): use it as-is.
+        const QUrl fullHref{child.path};
+        if(fullHref.isValid() && !fullHref.host().isEmpty()
+           && (fullHref.scheme() == QLatin1String(Scheme) || fullHref.scheme() == QLatin1String(SecureScheme))) {
             entry.path = child.path;
+            entries.push_back(entry);
+            continue;
         }
-        else {
-            const QString base   = url.toString();
-            const QString joined = joinPath(base, child.path);
-            entry.path           = joined;
+
+        // Relative/root-absolute href: rebuild onto scheme://authority.
+        // url is the webdav(s) URL currently being listed.
+        QString base = url.toString();
+        // Trim any path of the listed URL so a root-absolute href is not doubled.
+        const int authorityEnd = base.indexOf(u'/', base.indexOf(u"://"_s) + 3);
+        if(authorityEnd >= 0) {
+            base = base.left(authorityEnd);
         }
+        QString childPath = child.path;
+        if(!childPath.startsWith(u'/')) {
+            childPath = u'/' + childPath;
+        }
+        entry.path = base + childPath;
         entries.push_back(entry);
     }
     return entries;
