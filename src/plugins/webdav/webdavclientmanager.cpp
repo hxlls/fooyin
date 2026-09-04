@@ -53,7 +53,11 @@ WebdavClient* WebdavClientManager::clientFor(const QUrl& url)
     // Configure from the stored per-server entry, if present. Entries are
     // written by the library settings UI when a WebDAV source is added.
     const QVariantMap entry = m_settings->fileValue(settingsKeyFor(key)).toMap();
-    if(!entry.isEmpty()) {
+    if(entry.isEmpty()) {
+        qWarning() << "No stored credentials for WebDAV server" << key
+                   << "- add the library through the settings UI first.";
+    }
+    else {
         client->setCredentials(entry.value(QStringLiteral("user")).toString(),
                                entry.value(QStringLiteral("password")).toString());
         if(entry.value(QStringLiteral("insecureSsl")).toBool()) {

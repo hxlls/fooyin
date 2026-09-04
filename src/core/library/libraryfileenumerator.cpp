@@ -124,6 +124,7 @@ bool LibraryFileEnumerator::enumerateFiles(const QStringList& paths, const QStri
             LibraryDirProvider* const provider = libraryDirProviderRegistry()->providerForScheme(QUrl{path}.scheme());
             if(!provider) {
                 // No provider registered for this scheme; nothing to enumerate.
+                qWarning() << "No library directory provider for scheme" << QUrl{path}.scheme() << "(" << path << ")";
                 continue;
             }
 
@@ -136,7 +137,8 @@ bool LibraryFileEnumerator::enumerateFiles(const QStringList& paths, const QStri
                 QString error;
                 const auto children = provider->listDirectory(url, &error);
                 if(!children.has_value()) {
-                    // Listing failed (transport/auth); skip the subtree.
+                    // Listing failed (transport/auth); skip the subtree, but log the reason.
+                    qWarning() << "WebDAV directory listing failed:" << url.toString() << ':' << error;
                     return true;
                 }
 
