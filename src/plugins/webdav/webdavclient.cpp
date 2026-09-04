@@ -182,9 +182,18 @@ std::optional<qint64> WebdavResponse::rangeTotal() const
 class NetworkWorker : public QObject
 {
 public:
-    NetworkWorker()
-        : m_network{new QNetworkAccessManager(this)}
+    NetworkWorker() = default;
+
+    /*!
+     * Creates the network manager. Must run on the worker's own thread (after
+     * moveToThread), because a QNetworkAccessManager may only be used from the
+     * thread that created it. The client is created on a scanner/decoder worker
+     * thread, so constructing the manager there would crash when the network
+     * thread later drives it.
+     */
+    void init()
     {
+        m_network = new QNetworkAccessManager(this);
         QObject::connect(m_network, &QNetworkAccessManager::authenticationRequired, this,
                          [this](QNetworkReply*, QAuthenticator* authenticator) {
                              if(!m_user.isEmpty()) {
@@ -301,6 +310,8 @@ WebdavClient::WebdavClient(QObject* parent)
     m_worker->moveToThread(m_thread);
 
     QObject::connect(m_thread, &QThread::started, m_thread, [this]() {
+        // QNAM must be created on this (network) thread.
+        m_worker->init();
         m_worker->setCredentials(m_user, m_password);
         m_worker->setTimeout(static_cast<int>(m_timeout.count()));
         m_worker->setInsecureSsl(m_insecureSsl);
