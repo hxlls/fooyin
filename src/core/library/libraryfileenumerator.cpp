@@ -19,6 +19,8 @@
 
 #include "libraryfileenumerator.h"
 
+#include "librarydirprovider.h"
+
 #include "libraryscanstate.h"
 #include "libraryscanutils.h"
 
@@ -110,15 +112,68 @@ bool LibraryFileEnumerator::enumerateFiles(const QStringList& paths, const QStri
         }
 
         // A library root may be a local directory or a virtual (scheme) path.
+        // Virtual roots (e.g. webdavs://) have no local filesystem presence; a
+        // provider registered by the owning plugin enumerates them via its own
+        // protocol (PROPFIND for WebDAV). The traversal below stays in the core
+        // enumerator so every source shares the same recursion and de-duplication.
         if(Track::isVirtualPath(path)) {
-            // Virtual enumeration is supplied by the audio input backend layer;
-            // the local enumerator only walks real directories. A caller that
-            // adds a virtual library root must provide a directory provider
-            // (future work); here we simply accept an empty traversal so a
-            // manual scan over a virtual root does not attempt local I/O.
-            const QString normalisedRoot = normalisePath(path);
-            if(!visitedDirs.emplace(normalisedRoot).second) {
+            if(!visitedDirs.emplace(normalisePath(path)).second) {
                 continue;
+            }
+
+            LibraryDirProvider* const provider = libraryDirProviderRegistry()->providerForScheme(QUrl{path}.scheme());
+            if(!provider) {
+                // No provider registered for this scheme; nothing to enumerate.
+                continue;
+            }
+
+            std::function<bool(const QUrl&)> processVirtualDir;
+            processVirtualDir = [this, &provider, &processVirtualDir, &fileType](const QUrl& url) -> bool {
+                if(!m_state->mayRun()) {
+                    return false;
+                }
+
+                QString error;
+                const auto children = provider->listDirectory(url, &error);
+                if(!children.has_value()) {
+                    // Listing failed (transport/auth); skip the subtree.
+                    return true;
+                }
+
+                for(const auto& entry : children.value()) {
+                    if(!m_state->mayRun()) {
+                        return false;
+                    }
+
+                    // Directories recurse; files are classified and emitted below.
+                    if(entry.isDir) {
+                        if(!processVirtualDir(QUrl{entry.path})) {
+                            return false;
+                        }
+                        continue;
+                    }
+
+                    const QString filepath = normalisePath(entry.path);
+                    if(!m_state->rememberDiscoveredPath(filepath)) {
+                        continue;
+                    }
+                    m_state->fileDiscovered(filepath);
+
+                    // cue/playlist handling for virtual sources is intentionally
+                    // minimal: only plain track files are emitted. Cue sheets and
+                    // playlist files over a virtual transport are out of scope.
+                    const auto type = fileType(entry.path);
+                    if(type && type.value() == EnumeratedFileType::Track) {
+                        if(!m_handler(entry, EnumeratedFileType::Track)) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            };
+
+            if(!processVirtualDir(QUrl{path})) {
+                return false;
             }
             continue;
         }

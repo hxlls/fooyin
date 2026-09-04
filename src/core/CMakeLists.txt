@@ -224,6 +224,8 @@ set(SOURCES
     engine/audioclock.h
     internalcoresettings.cpp
     internalcoresettings.h
+    library/librarydirprovider.cpp
+    library/librarydirprovider.h
     library/librarymanager.cpp
     library/librarymanager.h
     library/libraryfileenumerator.cpp
