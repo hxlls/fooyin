@@ -391,7 +391,7 @@ WebdavResponse WebdavClient::getRange(const QUrl& url, qint64 start, qint64 end)
     return exec(&req);
 }
 
-std::optional<QList<WebdavEntry>> WebdavClient::listDirectory(const QUrl& url)
+std::optional<QList<WebdavEntry>> WebdavClient::listDirectory(const QUrl& url, QString* errorDetail)
 {
     WebdavClientRequest req;
     makeRequest(req, url, QByteArrayLiteral("PROPFIND"), PropfindBody,
@@ -399,6 +399,15 @@ std::optional<QList<WebdavEntry>> WebdavClient::listDirectory(const QUrl& url)
 
     const WebdavResponse response = exec(&req);
     if(response.status != 207) {
+        if(errorDetail) {
+            if(response.status > 0) {
+                *errorDetail = u"HTTP %1"_s.arg(response.status)
+                             + (response.error.isEmpty() ? QString{} : u" - "_s + response.error);
+            }
+            else {
+                *errorDetail = response.error.isEmpty() ? u"Request failed (no response)"_s : response.error;
+            }
+        }
         return {};
     }
 

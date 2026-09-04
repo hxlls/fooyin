@@ -49,9 +49,9 @@ std::optional<QList<LibraryEntry>> WebdavDirProvider::listDirectory(const QUrl& 
         return {};
     }
 
-    const auto children = client->listDirectory(dirUrl);
+    const auto children = client->listDirectory(dirUrl, error);
     if(!children.has_value()) {
-        if(error) {
+        if(error && error->isEmpty()) {
             *error = u"Failed to list directory"_s;
         }
         return {};

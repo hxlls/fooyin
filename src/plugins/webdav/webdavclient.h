@@ -123,7 +123,12 @@ public:
 
     [[nodiscard]] WebdavResponse head(const QUrl& url);
     [[nodiscard]] WebdavResponse getRange(const QUrl& url, qint64 start, qint64 end);
-    [[nodiscard]] std::optional<QList<WebdavEntry>> listDirectory(const QUrl& url);
+    /*!
+     * Lists @p url's direct children. On failure returns nullopt and, when @p
+     * errorDetail is set, fills it with the HTTP status / transport error so
+     * callers can distinguish TLS, authentication and timeout failures.
+     */
+    [[nodiscard]] std::optional<QList<WebdavEntry>> listDirectory(const QUrl& url, QString* errorDetail = nullptr);
 
 private:
     friend class NetworkWorker;
