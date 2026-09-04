@@ -300,8 +300,12 @@ private:
     bool m_insecureSsl{false};
 };
 
-WebdavClient::WebdavClient(QObject* parent)
+WebdavClient::WebdavClient(const WebdavClientConfig& config, QObject* parent)
     : QObject{parent}
+    , m_user{config.user}
+    , m_password{config.password}
+    , m_timeout{config.timeout}
+    , m_insecureSsl{config.insecureSsl}
 {
     m_thread = new QThread(this);
     m_thread->setObjectName(u"WebDAV network"_s);
@@ -309,13 +313,19 @@ WebdavClient::WebdavClient(QObject* parent)
     m_worker = new NetworkWorker();
     m_worker->moveToThread(m_thread);
 
-    QObject::connect(m_thread, &QThread::started, m_thread, [this]() {
-        // QNAM must be created on this (network) thread.
+    // init() MUST run on the network thread: it creates the QNetworkAccessManager
+    // with m_worker as its parent. Using m_thread as the connection context
+    // (which lives on the caller's thread) would run init() there, parenting a
+    // QObject to a different-thread parent ("Cannot create children for a parent
+    // that is in a different thread") and leaving the manager on the wrong thread
+    // so get()/sendCustomRequest() crash when driven from the network thread.
+    // Using m_worker as the receiver keeps init() on the network thread.
+    QObject::connect(m_thread, &QThread::started, m_worker, [this]() {
         m_worker->init();
         m_worker->setCredentials(m_user, m_password);
         m_worker->setTimeout(static_cast<int>(m_timeout.count()));
         m_worker->setInsecureSsl(m_insecureSsl);
-    });
+    }, Qt::DirectConnection);
     QObject::connect(m_thread, &QThread::finished, m_worker, &QObject::deleteLater);
 
     m_thread->start();

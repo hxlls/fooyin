@@ -44,27 +44,28 @@ WebdavClient* WebdavClientManager::createClient(const QString& key)
 {
     // Only ever called on this object's thread: a client owns a QThread and a
     // QNetworkAccessManager, and both must live on the thread that created them.
-    auto* client = new WebdavClient(this);
 
     // Configure from the stored per-server entry, written by the library
     // settings UI when a WebDAV source is added.
     const QVariantMap entry = m_settings->fileValue(settingsKeyFor(key)).toMap();
+
+    WebdavClientConfig config;
     if(entry.isEmpty()) {
         qWarning() << "No stored credentials for WebDAV server" << key
                    << "- add the library through the settings UI first.";
     }
     else {
-        client->setCredentials(entry.value(QStringLiteral("user")).toString(),
-                               entry.value(QStringLiteral("password")).toString());
-        if(entry.value(QStringLiteral("insecureSsl")).toBool()) {
-            // The server certificate does not match the target host (e.g. a NAS
-            // reached by raw LAN IP against a hostname certificate); disable peer
-            // verification for this server only.
-            client->setInsecureSsl(true);
-        }
+        config.user     = entry.value(QStringLiteral("user")).toString();
+        config.password = entry.value(QStringLiteral("password")).toString();
+        // The server certificate does not match the target host (e.g. a NAS
+        // reached by raw LAN IP against a hostname certificate); disable peer
+        // verification for this server only.
+        config.insecureSsl = entry.value(QStringLiteral("insecureSsl")).toBool();
     }
 
-    return client;
+    // Pass the config at construction so the network worker reads it after the
+    // thread starts, avoiding a race with setCredentials() before start().
+    return new WebdavClient(config, this);
 }
 
 WebdavClient* WebdavClientManager::clientFor(const QUrl& url)

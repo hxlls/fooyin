@@ -69,6 +69,16 @@ struct WebdavEntry
 
 class NetworkWorker;
 
+//! Immutable configuration captured at construction, so the network worker can
+//! be initialised on its own thread without racing the caller.
+struct WebdavClientConfig
+{
+    QString user;
+    QString password;
+    bool insecureSsl{false};
+    std::chrono::milliseconds timeout{30000};
+};
+
 //! A single outbound request plus its completion latch. Owned by the caller of
 //! the synchronous API; the network worker fills it and notifies `cv`.
 struct WebdavClientRequest
@@ -106,7 +116,7 @@ class WebdavClient : public QObject
     Q_OBJECT
 
 public:
-    explicit WebdavClient(QObject* parent = nullptr);
+    explicit WebdavClient(const WebdavClientConfig& config, QObject* parent = nullptr);
     ~WebdavClient() override;
 
     WebdavClient(const WebdavClient&)            = delete;
