@@ -28,9 +28,11 @@ set(FOOYIN_KNOWN_PLUGINS
     sleepinhibitor
     sndfile
     spectrum
+    ftp
     soundtouch
     spectrogram
     soxresampler
+    ftp
     sftp
     tageditor
     thumbnailtoolbar
@@ -62,6 +64,7 @@ set(FOOYIN_DEFAULT_PLUGINS
     sndfile
     spectrogram
     spectrum
+    ftp
     sftp
     soundtouch
     soxresampler
@@ -136,6 +139,7 @@ endif()
 fooyin_add_selected_plugin(discord)
 fooyin_add_selected_plugin(equaliser)
 fooyin_add_selected_plugin(fileops)
+fooyin_add_selected_plugin(ftp)
 fooyin_add_selected_plugin(filters)
 fooyin_add_selected_plugin(gme)
 fooyin_add_selected_plugin(libarchive)

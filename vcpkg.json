@@ -19,6 +19,7 @@
     "soundtouch",
     "soxr",
     "projectm",
+    "libcurl",
     "libssh2",
     "openssl"
   ],

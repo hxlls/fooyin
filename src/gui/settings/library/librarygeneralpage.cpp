@@ -276,6 +276,12 @@ void LibraryGeneralPageWidget::addLibrary() const
     // SFTP server: same flow as WebDAV but with an sftp:// path and per-server
     // credentials stored under "sftp/<host:port>".
     QAction* const addSftp = addMenu.addAction(tr("&SFTP server\u2026"));
+    // FTP/FTPS server: ftp(s):// path, credentials under "ftp/<host:port>".
+    QAction* const addFtp = addMenu.addAction(tr("&FTP/FTPS server\u2026"));
+    // SMB and NFS shares: OS-provided paths (UNC / mount points) are added as
+    // ordinary local directories; fooyin needs no in-app protocol support.
+    QAction* const addSmb = addMenu.addAction(tr("&SMB share\u2026"));
+    QAction* const addNfs = addMenu.addAction(tr("N&FS share\u2026"));
 
     // Pop the source-type menu under the cursor (the just-clicked "+"), not centred on
     // the table. addLibrary() runs right after the ExtendableTableView "+" was pressed,
@@ -403,6 +409,124 @@ void LibraryGeneralPageWidget::addLibrary() const
             m_settings->fileSet(QStringLiteral("sftp/") + authority, credentials);
 
             m_model->markForAddition({.name = name, .path = url});
+        }
+        return;
+    }
+
+    // ===== FTP/FTPS source: configuration dialog =====
+    // ftp(s)://host[:port]/abs/path; explicit TLS ("FTPS", port 21) and
+    // implicit TLS (port 990) are both handled by the FTP plugin, so ftps:// is
+    // accepted regardless of the server's TLS mode.
+    if(chosen == addFtp) {
+        QDialog dialog(m_libraryView);
+        dialog.setWindowTitle(tr("Add FTP/FTPS library"));
+        auto* form     = new QFormLayout;
+        auto* urlEdit  = new QLineEdit(u"ftps://"_s, &dialog);
+        auto* userEdit = new QLineEdit(&dialog);
+        auto* passEdit = new QLineEdit(&dialog);
+        auto* nameEdit = new QLineEdit(&dialog);
+        passEdit->setEchoMode(QLineEdit::Password);
+        form->addRow(tr("Server URL:"), urlEdit);
+        form->addRow(tr("User name:"), userEdit);
+        form->addRow(tr("Password:"), passEdit);
+        form->addRow(tr("Library name:"), nameEdit);
+        auto* insecureSsl = new QCheckBox(tr("Ignore certificate errors"), &dialog);
+        auto* buttons     = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        auto* layout = new QVBoxLayout(&dialog);
+        layout->addLayout(form);
+        layout->addWidget(insecureSsl);
+        layout->addWidget(buttons);
+
+        if(dialog.exec() == QDialog::Accepted) {
+            QString url  = urlEdit->text().trimmed();
+            QString name = nameEdit->text().trimmed();
+            if(name.isEmpty()) {
+                const QUrl parsed{url};
+                const QString path = parsed.path();
+                name               = path.isEmpty() ? parsed.host() : QFileInfo{path}.fileName();
+            }
+            if(url.isEmpty() || name.isEmpty()) {
+                m_model->markForAddition({});
+                return;
+            }
+            const QUrl urlParsed{url};
+            const QString authority = urlParsed.port() > 0
+                                        ? QStringLiteral("%1:%2").arg(urlParsed.host()).arg(urlParsed.port())
+                                        : urlParsed.host();
+            QVariantMap credentials;
+            credentials.insert(QStringLiteral("user"), userEdit->text());
+            credentials.insert(QStringLiteral("password"), passEdit->text());
+            credentials.insert(QStringLiteral("insecureSsl"), insecureSsl->isChecked());
+            m_settings->fileSet(QStringLiteral("ftp/") + authority, credentials);
+
+            m_model->markForAddition({.name = name, .path = url});
+        }
+        return;
+    }
+
+    // ===== SMB / NFS network-share sources =====
+    // These are added as OS paths (UNC or mount points); fooyin's local file
+    // pipeline handles them. Only a small guidance dialog is shown.
+    if(chosen == addSmb || chosen == addNfs) {
+        const bool isSmb = chosen == addSmb;
+
+        QDialog dialog(m_libraryView);
+        dialog.setWindowTitle(tr("Add %1 share").arg(isSmb ? u"SMB"_s : u"NFS"_s));
+        auto* layout = new QVBoxLayout(&dialog);
+
+        QString hint;
+        if(isSmb) {
+#ifdef Q_OS_WIN
+            hint = tr("Enter a UNC path such as \\server\share\music (or map a drive first and pick it below).");
+#elif defined(Q_OS_MACOS)
+            hint = tr("Connect to the share in Finder first (Go \u2192 Connect to Server), then pick the mounted "
+                      "volume below.");
+#else
+            hint = tr("Mount the share first (e.g. mount -t cifs //server/share /mnt/music), then pick the mount "
+                      "directory below.");
+#endif
+        }
+        else {
+#ifdef Q_OS_WIN
+            hint = tr("Enable the Windows NFS client, mount the share to a drive (mount -o anon \\server\export Z:), "
+                      "then pick that drive below.");
+#elif defined(Q_OS_MACOS)
+            hint = tr("Mount the NFS export first (mount_nfs server:/export /Volumes/x), then pick the mount directory "
+                      "below.");
+#else
+            hint = tr("Mount the NFS export first (e.g. mount -t nfs server:/export /mnt/music), then pick the mount "
+                      "directory below.");
+#endif
+        }
+        auto* hintLabel = new QLabel(hint, &dialog);
+        hintLabel->setWordWrap(true);
+        layout->addWidget(hintLabel);
+
+        auto* pathEdit = new QLineEdit(&dialog);
+        auto* browse   = new QPushButton(tr("Browse\u2026"), &dialog);
+        layout->addWidget(pathEdit);
+        layout->addWidget(browse);
+        auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        layout->addWidget(buttons);
+        QObject::connect(browse, &QPushButton::clicked, &dialog, [&dialog, pathEdit]() {
+            const QString dir = QFileDialog::getExistingDirectory(&dialog, tr("Select folder"));
+            if(!dir.isEmpty()) {
+                pathEdit->setText(dir);
+            }
+        });
+
+        if(dialog.exec() == QDialog::Accepted) {
+            const QString path = pathEdit->text().trimmed();
+            if(path.isEmpty()) {
+                m_model->markForAddition({});
+                return;
+            }
+            const QFileInfo info{QDir::cleanPath(path)};
+            m_model->markForAddition({.name = info.fileName(), .path = path});
         }
         return;
     }
