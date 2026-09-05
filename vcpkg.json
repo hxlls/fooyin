@@ -18,7 +18,9 @@
     "libgme",
     "soundtouch",
     "soxr",
-    "projectm"
+    "projectm",
+    "libssh2",
+    "openssl"
   ],
   "features": {
     "fooyin-tests": {
