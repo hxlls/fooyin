@@ -6,21 +6,31 @@ if(NOT CURL_INCLUDE_DIR OR NOT CURL_LIBRARY)
     return()
 endif()
 
-# The static curl build used here pulls in OpenSSL (and possibly zlib); link
-# them explicitly so a static libcurl archive satisfies all symbols.
-find_package(OpenSSL REQUIRED)
-find_package(ZLIB QUIET)
-find_library(IDN2_LIBRARY NAMES idn2)
+# Extra link dependencies of a static libcurl build. On Linux this means
+# OpenSSL (and optionally zlib/libidn2) because system curl is built against
+# them. On Windows the vcpkg curl port links its own TLS backend (schannel), so
+# nothing extra is needed.
+set(FTP_LINK_LIBS ${CURL_LIBRARY})
+if(UNIX)
+    find_package(OpenSSL REQUIRED)
+    find_package(ZLIB QUIET)
+    find_library(IDN2_LIBRARY NAMES idn2)
+
+    list(APPEND FTP_LINK_LIBS OpenSSL::SSL OpenSSL::Crypto)
+    if(ZLIB_FOUND)
+        list(APPEND FTP_LINK_LIBS ZLIB::ZLIB)
+    endif()
+    if(IDN2_LIBRARY)
+        list(APPEND FTP_LINK_LIBS ${IDN2_LIBRARY})
+    endif()
+endif()
 
 create_fooyin_plugin_internal(
     ftp
     DEPENDS Fooyin::Core
             Fooyin::CorePrivate
             ${FFMPEG_LIBRARIES}
-            ${CURL_LIBRARY}
-            ${IDN2_LIBRARY}
-            OpenSSL::SSL
-            OpenSSL::Crypto
+            ${FTP_LINK_LIBS}
     SOURCES ftpclient.cpp
             ftpclient.h
             ftpclientmanager.cpp
